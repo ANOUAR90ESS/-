@@ -13,7 +13,9 @@ import {
   Bot, 
   Compass, 
   Calculator,
-  ArrowUpDown
+  ArrowUpDown,
+  Zap,
+  Radar
 } from 'lucide-react';
 import { ProjectIdea, ProjectCategory } from './types';
 import { PROJECT_IDEAS, CATEGORIES_CONFIG } from './data/projectsData';
@@ -24,6 +26,8 @@ import { ProfitCalculator } from './components/ProfitCalculator';
 import { AiPlanGenerator } from './components/AiPlanGenerator';
 import { IdeaMatchmakerQuiz } from './components/IdeaMatchmakerQuiz';
 import { FavoritesDrawer } from './components/FavoritesDrawer';
+import { EmergencyCashMode } from './components/EmergencyCashMode';
+import { AssetScanner } from './components/AssetScanner';
 
 export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -42,6 +46,9 @@ export default function App() {
 
   const [isQuizOpen, setIsQuizOpen] = useState<boolean>(false);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState<boolean>(false);
+  const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
+  const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
+  const [aiSeedTitle, setAiSeedTitle] = useState<string | null>(null);
 
   // Favorites state persisted in localStorage
   const [favorites, setFavorites] = useState<string[]>(() => {
@@ -119,6 +126,14 @@ export default function App() {
 
   const handleOpenAiPlanner = (project?: ProjectIdea) => {
     setSelectedProjectForAi(project || null);
+    setAiSeedTitle(null);
+    setIsAiOpen(true);
+  };
+
+  // فكرة مولّدة من ماسح الأصول: لا تقابلها بطاقة مشروع في قاعدة البيانات
+  const handleGeneratePlanForIdea = (ideaTitle: string) => {
+    setSelectedProjectForAi(null);
+    setAiSeedTitle(ideaTitle);
     setIsAiOpen(true);
   };
 
@@ -133,9 +148,29 @@ export default function App() {
         onOpenCalculator={() => handleOpenCalculator()}
         onOpenAiPlanner={() => handleOpenAiPlanner()}
         onOpenQuiz={() => setIsQuizOpen(true)}
+        onOpenEmergencyCash={() => setIsEmergencyOpen(true)}
+        onOpenAssetScanner={() => setIsScannerOpen(true)}
       />
 
       {/* Hero Section */}
+      {/* شريط الدخل العاجل: لمن لا يبحث عن مشروع بل عن مال هذا الأسبوع */}
+      <button
+        id="btn-strip-emergency"
+        onClick={() => setIsEmergencyOpen(true)}
+        className="w-full bg-rose-950 hover:bg-rose-900 text-white border-b border-rose-900 transition-colors group"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-center gap-2.5 text-xs sm:text-sm">
+          <Zap className="w-4 h-4 text-rose-400 shrink-0" />
+          <span className="font-bold">لا تبحث عن مشروع بل عن مال هذا الأسبوع؟</span>
+          <span className="text-rose-200 hidden sm:inline">
+            مسارات تُدرّ دخلاً خلال 72 ساعة بصفر رأس مال
+          </span>
+          <span className="font-bold text-rose-300 underline underline-offset-4 group-hover:text-white transition-colors shrink-0">
+            ابدأ الآن
+          </span>
+        </div>
+      </button>
+
       <section className="bg-stone-900 text-white py-10 px-4 sm:px-6 lg:px-8 border-b border-stone-800">
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
@@ -163,14 +198,24 @@ export default function App() {
                   أجب عن 4 أسئلة سريعة لاقتراح المشروع الأنسب لميزانيتك ووقتك
                 </p>
               </div>
-              <button
-                id="btn-hero-quiz"
-                onClick={() => setIsQuizOpen(true)}
-                className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2 shrink-0"
-              >
-                <Compass className="w-4 h-4" />
-                <span>بدء اختبار المشروع الأنسب</span>
-              </button>
+              <div className="flex flex-col gap-2 w-full sm:w-auto shrink-0">
+                <button
+                  id="btn-hero-quiz"
+                  onClick={() => setIsQuizOpen(true)}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2"
+                >
+                  <Compass className="w-4 h-4" />
+                  <span>بدء اختبار المشروع الأنسب</span>
+                </button>
+                <button
+                  id="btn-hero-scanner"
+                  onClick={() => setIsScannerOpen(true)}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2"
+                >
+                  <Radar className="w-4 h-4" />
+                  <span>ولّد فكرة من أصولك أنت</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -299,6 +344,42 @@ export default function App() {
           </div>
         )}
 
+        {/* قسم ماسح الأصول: من كتالوج إلى محرّك أفكار */}
+        <section className="bg-white rounded-2xl border border-indigo-200 p-6 sm:p-8 relative overflow-hidden">
+          <div className="max-w-3xl space-y-4">
+            <span className="text-xs font-bold text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200 inline-flex items-center gap-1.5">
+              <Radar className="w-3.5 h-3.5 text-indigo-600" />
+              ماسح الأصول
+            </span>
+            <h3 className="text-xl sm:text-2xl font-extrabold text-stone-950 leading-snug">
+              لم تجد فكرتك في القائمة؟ لأن فكرتك ليست في أي قائمة.
+            </h3>
+            <p className="text-stone-600 text-xs sm:text-sm leading-relaxed">
+              أفضل المشاريع لا تأتي من تقليد الآخرين، بل من دمج ما تملكه أنت ولا يملكه غيرك مجتمعاً.
+              أخبرنا بأصولك — أدواتك، مساحتك، وقتك، مهاراتك، ومن تعرفهم — ونولّد لك أفكاراً تنشأ من تركيبتك وحدها.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-stone-700">
+              <span className="px-2.5 py-1 rounded-full bg-stone-100 border border-stone-200 font-semibold">سيارة</span>
+              <span className="text-indigo-500 font-bold">+</span>
+              <span className="px-2.5 py-1 rounded-full bg-stone-100 border border-stone-200 font-semibold">تعرف طلاباً</span>
+              <span className="text-indigo-500 font-bold">=</span>
+              <span className="px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 font-bold text-indigo-900">
+                اشتراك توصيل شهري للسكن الجامعي
+              </span>
+            </div>
+            <div className="pt-2">
+              <button
+                id="btn-section-scanner"
+                onClick={() => setIsScannerOpen(true)}
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-2"
+              >
+                <Radar className="w-4 h-4" />
+                <span>افحص أصولي الآن</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* AI Banner Prompt Section */}
         <section className="bg-gradient-to-r from-emerald-950 via-stone-900 to-emerald-950 text-white rounded-2xl p-6 sm:p-8 border border-emerald-800/40 relative overflow-hidden shadow-md">
           <div className="relative z-10 max-w-2xl space-y-3">
@@ -414,11 +495,24 @@ export default function App() {
         isOpen={isAiOpen}
         onClose={() => setIsAiOpen(false)}
         initialProject={selectedProjectForAi}
+        seedTitle={aiSeedTitle}
       />
 
       <IdeaMatchmakerQuiz
         isOpen={isQuizOpen}
         onClose={() => setIsQuizOpen(false)}
+        onSelectProject={handleViewDetails}
+      />
+
+      <AssetScanner
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onGeneratePlanFor={handleGeneratePlanForIdea}
+      />
+
+      <EmergencyCashMode
+        isOpen={isEmergencyOpen}
+        onClose={() => setIsEmergencyOpen(false)}
         onSelectProject={handleViewDetails}
       />
 

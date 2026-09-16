@@ -6,7 +6,9 @@ import {
   Calculator, 
   Bot, 
   Compass, 
-  TrendingUp 
+  TrendingUp,
+  Zap,
+  Radar 
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -17,6 +19,8 @@ interface HeaderProps {
   onOpenCalculator: () => void;
   onOpenAiPlanner: () => void;
   onOpenQuiz: () => void;
+  onOpenEmergencyCash: () => void;
+  onOpenAssetScanner: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -27,6 +31,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenCalculator,
   onOpenAiPlanner,
   onOpenQuiz,
+  onOpenEmergencyCash,
+  onOpenAssetScanner,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200">
@@ -54,6 +60,14 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Mobile Actions Quick Bar */}
             <div className="flex md:hidden items-center gap-2">
+              <button
+                id="btn-mobile-emergency"
+                onClick={onOpenEmergencyCash}
+                className="p-2 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors"
+                aria-label="أحتاج دخلاً هذا الأسبوع"
+              >
+                <Zap className="w-5 h-5" />
+              </button>
               <button
                 id="btn-mobile-favorites"
                 onClick={onOpenFavorites}
@@ -93,6 +107,24 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Quick Interactive Actions */}
           <div className="hidden md:flex items-center gap-2.5">
+            <button
+              id="btn-nav-emergency"
+              onClick={onOpenEmergencyCash}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-rose-900 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition-colors"
+            >
+              <Zap className="w-4 h-4 text-rose-600" />
+              أحتاج دخلاً هذا الأسبوع
+            </button>
+
+            <button
+              id="btn-nav-asset-scanner"
+              onClick={onOpenAssetScanner}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-colors"
+            >
+              <Radar className="w-4 h-4 text-indigo-600" />
+              ماسح الأصول
+            </button>
+
             <button
               id="btn-nav-quiz"
               onClick={onOpenQuiz}
