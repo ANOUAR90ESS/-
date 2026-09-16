@@ -8,7 +8,8 @@ import {
   Compass, 
   TrendingUp,
   Zap,
-  Radar 
+  Radar,
+  Gamepad2 
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -21,6 +22,7 @@ interface HeaderProps {
   onOpenQuiz: () => void;
   onOpenEmergencyCash: () => void;
   onOpenAssetScanner: () => void;
+  onOpenSimulator: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -33,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenQuiz,
   onOpenEmergencyCash,
   onOpenAssetScanner,
+  onOpenSimulator,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200">
@@ -123,6 +126,15 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Radar className="w-4 h-4 text-indigo-600" />
               ماسح الأصول
+            </button>
+
+            <button
+              id="btn-nav-simulator"
+              onClick={onOpenSimulator}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-violet-900 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-xl transition-colors"
+            >
+              <Gamepad2 className="w-4 h-4 text-violet-600" />
+              محاكي المشروع
             </button>
 
             <button

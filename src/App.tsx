@@ -15,7 +15,8 @@ import {
   Calculator,
   ArrowUpDown,
   Zap,
-  Radar
+  Radar,
+  Gamepad2
 } from 'lucide-react';
 import { ProjectIdea, ProjectCategory } from './types';
 import { PROJECT_IDEAS, CATEGORIES_CONFIG } from './data/projectsData';
@@ -28,6 +29,7 @@ import { IdeaMatchmakerQuiz } from './components/IdeaMatchmakerQuiz';
 import { FavoritesDrawer } from './components/FavoritesDrawer';
 import { EmergencyCashMode } from './components/EmergencyCashMode';
 import { AssetScanner } from './components/AssetScanner';
+import { BusinessSimulator } from './components/BusinessSimulator';
 
 export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -48,6 +50,7 @@ export default function App() {
   const [isFavoritesOpen, setIsFavoritesOpen] = useState<boolean>(false);
   const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState<boolean>(false);
   const [aiSeedTitle, setAiSeedTitle] = useState<string | null>(null);
 
   // Favorites state persisted in localStorage
@@ -150,6 +153,7 @@ export default function App() {
         onOpenQuiz={() => setIsQuizOpen(true)}
         onOpenEmergencyCash={() => setIsEmergencyOpen(true)}
         onOpenAssetScanner={() => setIsScannerOpen(true)}
+        onOpenSimulator={() => setIsSimulatorOpen(true)}
       />
 
       {/* Hero Section */}
@@ -380,6 +384,39 @@ export default function App() {
           </div>
         </section>
 
+        {/* قسم محاكي المشروع: التعلّم قبل الخسارة */}
+        <section className="bg-gradient-to-l from-violet-950 via-stone-900 to-stone-900 text-white rounded-2xl p-6 sm:p-8 border border-violet-900/50 shadow-md">
+          <div className="max-w-2xl space-y-4">
+            <span className="text-xs font-bold text-violet-300 bg-violet-500/15 px-2.5 py-1 rounded-full border border-violet-500/30 inline-flex items-center gap-1.5">
+              <Gamepad2 className="w-3.5 h-3.5" />
+              محاكي المشروع
+            </span>
+            <h3 className="text-xl sm:text-2xl font-extrabold text-white leading-snug">
+              جرّب إدارة مشروع لسنة كاملة قبل أن تخاطر بدينار واحد
+            </h3>
+            <p className="text-stone-300 text-xs sm:text-sm leading-relaxed">
+              ابدأ بـ 100$ افتراضية وأدِر 12 شهراً: سعّر منتجك، قرر كم تنتج، وزّع ميزانية تسويقك،
+              وواجه ما يواجهه أصحاب المشاريع فعلاً — ارتفاع أسعار المواد، منافس يفتح بجوارك،
+              وطلبية كبيرة بسعر مخفّض. في النهاية تقرأ تقريراً صريحاً بما أخطأت فيه.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-stone-300">
+              <span className="px-2.5 py-1 rounded-full bg-white/10 border border-white/15">أخطئ هنا لا في الواقع</span>
+              <span className="px-2.5 py-1 rounded-full bg-white/10 border border-white/15">14 حدثاً واقعياً</span>
+              <span className="px-2.5 py-1 rounded-full bg-white/10 border border-white/15">تقرير بأخطائك</span>
+            </div>
+            <div className="pt-2">
+              <button
+                id="btn-section-simulator"
+                onClick={() => setIsSimulatorOpen(true)}
+                className="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-2"
+              >
+                <Gamepad2 className="w-4 h-4" />
+                <span>ابدأ محاكاة 12 شهراً</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* AI Banner Prompt Section */}
         <section className="bg-gradient-to-r from-emerald-950 via-stone-900 to-emerald-950 text-white rounded-2xl p-6 sm:p-8 border border-emerald-800/40 relative overflow-hidden shadow-md">
           <div className="relative z-10 max-w-2xl space-y-3">
@@ -502,6 +539,11 @@ export default function App() {
         isOpen={isQuizOpen}
         onClose={() => setIsQuizOpen(false)}
         onSelectProject={handleViewDetails}
+      />
+
+      <BusinessSimulator
+        isOpen={isSimulatorOpen}
+        onClose={() => setIsSimulatorOpen(false)}
       />
 
       <AssetScanner

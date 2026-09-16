@@ -166,3 +166,94 @@ export interface AssetScanResult {
   ideas: ScannedIdea[];
   note?: string;
 }
+
+/* ---------- محاكي المشروع: 12 شهراً افتراضية ---------- */
+
+export interface SimConfig {
+  projectId: string;
+  projectTitle: string;
+  unitName: string;
+  basePrice: number;
+  baseCost: number;
+  baseDemand: number;
+  startingCash: number;
+  fixedMonthlyCost: number;
+  baseCapacity: number;
+  perishable: boolean;
+}
+
+export interface SimEventEffects {
+  costMultiplier?: number;
+  demandMultiplier?: number;
+  reputationDelta?: number;
+  cashDelta?: number;
+  bulkOrder?: { units: number; pricePerUnit: number };
+  /* آثار دائمة تستمر لبقية السنة */
+  capacityMultiplier?: number;
+  extraFixedCost?: number;
+  permanentDemandBonus?: number;
+}
+
+export interface SimEvent {
+  id: string;
+  title: string;
+  description: string;
+  kind: 'auto' | 'choice';
+  acceptLabel?: string;
+  declineLabel?: string;
+  effects: SimEventEffects;
+  declineEffects?: SimEventEffects;
+  minMonth?: number;
+}
+
+export interface SimDecision {
+  price: number;
+  produceUnits: number;
+  marketingSpend: number;
+  acceptedEvent?: boolean;
+}
+
+export interface MonthResult {
+  month: number;
+  price: number;
+  produced: number;
+  demand: number;
+  sold: number;
+  lostSales: number;
+  revenue: number;
+  productionCost: number;
+  marketingSpend: number;
+  fixedCost: number;
+  profit: number;
+  cashAfter: number;
+  inventoryAfter: number;
+  spoiled: number;
+  reputationAfter: number;
+  capacityAfter: number;
+  eventTitle?: string;
+  eventOutcome?: string;
+}
+
+export interface SimState {
+  config: SimConfig;
+  month: number;
+  cash: number;
+  inventory: number;
+  reputation: number;
+  capacity: number;
+  extraFixedCost: number;
+  demandBonus: number;
+  history: MonthResult[];
+  pendingEvent: SimEvent | null;
+  status: 'playing' | 'finished' | 'bankrupt';
+}
+
+export interface SimVerdict {
+  headline: string;
+  finalCash: number;
+  totalProfit: number;
+  bestMonth: number;
+  worstMonth: number;
+  lessons: string[];
+  shareText: string;
+}
