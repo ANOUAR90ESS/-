@@ -39,13 +39,46 @@ async function startServer() {
     const userSkills = skills || "التواصل الجيد والإنترنت والتنظيم";
     const userLocation = locationPreference || "من المنزل";
 
+    /**
+     * يستخرج رقم الميزانية من نص عربي حر ("أقل من 50 دولار"، "$100 - $350"، "20").
+     * يأخذ أكبر رقم مذكور لأنه عادةً سقف الميزانية لا أرضيتها.
+     */
+    const parseBudget = (text: string): number | null => {
+      const numbers = (text.match(/\d+(?:[.,]\d+)?/g) || [])
+        .map((n) => parseFloat(n.replace(",", "")))
+        .filter((n) => !isNaN(n) && n < 100000);
+      if (numbers.length === 0) return /بدون|صفر|لا أملك/.test(text) ? 0 : null;
+      return Math.max(...numbers);
+    };
+
+    const budgetCeiling = parseBudget(userBudget);
+
+    /**
+     * يبني نطاق تكلفة لا يتجاوز ميزانية المستخدم أبداً.
+     * إن كانت ميزانيته أقل من التكلفة النموذجية للنشاط، يُقال له ذلك صراحةً
+     * مع بديل واقعي — لا أن تُعطى له أرقام تناقض ما كتبه.
+     */
+    const budgetedCost = (typicalMin: number, typicalMax: number, note: string): string => {
+      if (budgetCeiling === null) return `$${typicalMin} - $${typicalMax} (${note})`;
+      if (budgetCeiling === 0) {
+        return `$0 — ابدأ بنظام الطلب المسبق: حصّل ثمن أول طلب قبل شراء أي شيء، فيموّل الزبون مكوّناتك.`;
+      }
+      if (budgetCeiling < typicalMin) {
+        const starter = Math.max(1, Math.round(budgetCeiling * 0.8));
+        return `$${starter} من أصل ميزانيتك ($${budgetCeiling}) — وهي أقل من التكلفة المعتادة لهذا النشاط (حوالي $${typicalMin}). ابدأ بنصف الكمية وبنظام الطلب المسبق، وأعد استثمار ربح أول طلبية بدل الاقتراض.`;
+      }
+      const low = Math.max(0, Math.round(Math.min(typicalMin, budgetCeiling * 0.45)));
+      const high = Math.round(Math.min(typicalMax, budgetCeiling));
+      return `$${low} - $${high} (${note}) — ضمن ميزانيتك المحددة $${budgetCeiling}`;
+    };
+
     // Helper: generate highly tailored plan if AI models are experiencing 503 spikes or unavailable
     const buildSmartPlan = () => {
       const isDigital = category?.includes("رقمي") || title.includes("سوشيال") || title.includes("تصميم") || title.includes("محتوى") || userLocation.includes("الإنترنت");
       const isFoodOrCraft = category?.includes("حرف") || category?.includes("طعام") || title.includes("أكل") || title.includes("شمع") || title.includes("طبخ") || title.includes("حلويات");
       const isService = category?.includes("خدمات") || title.includes("تنظيف") || title.includes("غسيل") || title.includes("تنسيق") || title.includes("ترتيب");
 
-      let startupCost = "$30 - $70 (رسوم أولية وتغليف بسيط)";
+      let startupCost = budgetedCost(30, 70, "رسوم أولية وتغليف بسيط");
       let monthlyProfit = "$450 - $1,250 شهرياً مع التفرغ الجزئي";
       let breakEven = "10 إلى 18 يوماً";
       let targetMarket = "العملاء المحليون والمتابعون المهتمون بالجودة والسرعة عبر السوشيال ميديا وواتساب للأعمال.";
@@ -72,7 +105,7 @@ async function startServer() {
       ];
 
       if (isDigital) {
-        startupCost = "0$ - 20$ (استخدام الهاتف أو الحاسوب واشتراكات مجانية/رمزية)";
+        startupCost = budgetedCost(0, 20, "استخدام الهاتف أو الحاسوب واشتراكات رمزية");
         monthlyProfit = "$500 - $1,800 شهرياً";
         breakEven = "3 إلى 7 أيام من أول عميل";
         targetMarket = "أصحاب المتاجر والمشاريع الناشئة وصناع المحتوى والباحثون عن حلول سريعة.";
@@ -84,13 +117,13 @@ async function startServer() {
           "جدولة مهام العمل يومياً بمعدل " + userHours + " لضمان التسليم في الموعد المحدد."
         ];
       } else if (isFoodOrCraft) {
-        startupCost = "$40 - $120 (خامات أولية وتغليف احترافي وملصقات خاصة)";
+        startupCost = budgetedCost(40, 120, "خامات أولية وتغليف وملصقات");
         monthlyProfit = "$400 - $1,100 شهرياً";
         breakEven = "14 إلى 21 يوماً";
         targetMarket = "العائلات، المهتمون بالهدايا، زبائن المناسبات والضيافة في نطاق مدينتك.";
         pricing = "احسب تكلفة الخامات بدقة + تكلفة التغليف واضرب في 2.5 إلى 3 لتحديد سعر البيع الرابح.";
       } else if (isService) {
-        startupCost = "$25 - $60 (أدوات عمل أولية ومواد تنظيف أو تجهيز)";
+        startupCost = budgetedCost(25, 60, "أدوات عمل أولية ومواد تجهيز");
         monthlyProfit = "$600 - $1,500 شهرياً";
         breakEven = "أول أسبوع من بدء تقديم الخدمة";
         targetMarket = "سكان الأحياء السكنية المجاورة وأصحاب السيارات وملاك المنازل المشغولون.";
@@ -151,13 +184,18 @@ async function startServer() {
 - مكان العمل المفضل: ${userLocation}
 - الفئة المستهدفة: ${targetAudience || "عامة الجمهور والمهتمين بالخدمات السريعة"}
 
+قيود إلزامية لا تخالفها:
+1. التكلفة المبدئية يجب ألا تتجاوز ميزانية المستخدم المذكورة أعلاه إطلاقاً. إن كانت ميزانيته لا تكفي للنشاط، قل ذلك صراحةً واقترح بداية أصغر بنظام الطلب المسبق — لا تعطه رقماً يناقض ما كتبه.
+2. اربط الخطوات بمهاراته (${userSkills}) ومكان عمله (${userLocation}) وساعاته (${userHours}) تحديداً، لا بنصائح عامة تصلح لأي شخص.
+3. لا تقترح "أنشئ حساب إنستغرام وانشر 3 منشورات" كخطوة أولى إن لم تكن الأنسب فعلاً لهذا النشاط بالذات.
+
 المطلوب: توليد دراسة جدوى وخطة عمل إطلاق سريعة ومختصرة وعملية جداً باللغة العربية بتنسيق JSON حصراً بدون أي كود ماركداون خارج الـ JSON.
 يجب أن يكون الـ JSON بالبنية التالية تماماً:
 {
   "title": "اسم جذاب ومحدد للمشروع",
   "summary": "ملخص تنفيذي مقنع في جملتين حول سبب نجاح هذا المشروع وسهولة جني الأرباح منه",
   "targetMarket": "وصف العميل المستهدف بدقة وأين تجده",
-  "estimatedStartupCost": "تفصيل التكلفة المبدئية التقديرية بدقة",
+  "estimatedStartupCost": "التكلفة المبدئية ضمن ميزانية المستخدم المذكورة، أو تنبيه صريح إن كانت ميزانيته لا تكفي",
   "expectedMonthlyProfit": "الربح الصافي المتوقع شهرياً بالدولار أو العملة المحلية",
   "breakEvenDays": "المدة المتوقعة لاسترداد رأس المال",
   "quickSteps": [

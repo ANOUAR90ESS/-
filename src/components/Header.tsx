@@ -11,7 +11,8 @@ import {
   Radar,
   Gamepad2,
   Scale,
-  Languages
+  Languages,
+  Camera 
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -28,6 +29,7 @@ interface HeaderProps {
   onOpenSimulator: () => void;
   comparisonCount?: number;
   onOpenComparison?: () => void;
+  onOpenPhotoStudio: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -43,6 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSimulator,
   comparisonCount = 0,
   onOpenComparison,
+  onOpenPhotoStudio,
 }) => {
   const { language, toggleLanguage, t, isRTL } = useLanguage();
 
@@ -184,6 +187,15 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Radar className="w-4 h-4 text-indigo-600" />
               {t('nav_scanner')}
+            </button>
+
+            <button
+              id="btn-nav-photo-studio"
+              onClick={onOpenPhotoStudio}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-sky-900 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition-colors"
+            >
+              <Camera className="w-4 h-4 text-sky-600" />
+              {t('nav_photo_studio')}
             </button>
 
             <button
