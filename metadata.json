@@ -1,0 +1,6 @@
+{
+  "name": "أفكار مشاريع سهلة ومربحة",
+  "description": "منصة شاملة لاكتشاف وتخطيط أفكار مشاريع سهلة ومربحة مع حاسبة أرباح ومولد دراسات جدوى ذكي",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
