@@ -13,7 +13,8 @@ import {
   Bot, 
   Compass, 
   Calculator,
-  ArrowUpDown
+  ArrowUpDown,
+  Zap
 } from 'lucide-react';
 import { ProjectIdea, ProjectCategory } from './types';
 import { PROJECT_IDEAS, CATEGORIES_CONFIG } from './data/projectsData';
@@ -24,6 +25,7 @@ import { ProfitCalculator } from './components/ProfitCalculator';
 import { AiPlanGenerator } from './components/AiPlanGenerator';
 import { IdeaMatchmakerQuiz } from './components/IdeaMatchmakerQuiz';
 import { FavoritesDrawer } from './components/FavoritesDrawer';
+import { EmergencyCashMode } from './components/EmergencyCashMode';
 
 export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -42,6 +44,7 @@ export default function App() {
 
   const [isQuizOpen, setIsQuizOpen] = useState<boolean>(false);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState<boolean>(false);
+  const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
 
   // Favorites state persisted in localStorage
   const [favorites, setFavorites] = useState<string[]>(() => {
@@ -133,9 +136,28 @@ export default function App() {
         onOpenCalculator={() => handleOpenCalculator()}
         onOpenAiPlanner={() => handleOpenAiPlanner()}
         onOpenQuiz={() => setIsQuizOpen(true)}
+        onOpenEmergencyCash={() => setIsEmergencyOpen(true)}
       />
 
       {/* Hero Section */}
+      {/* شريط الدخل العاجل: لمن لا يبحث عن مشروع بل عن مال هذا الأسبوع */}
+      <button
+        id="btn-strip-emergency"
+        onClick={() => setIsEmergencyOpen(true)}
+        className="w-full bg-rose-950 hover:bg-rose-900 text-white border-b border-rose-900 transition-colors group"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-center gap-2.5 text-xs sm:text-sm">
+          <Zap className="w-4 h-4 text-rose-400 shrink-0" />
+          <span className="font-bold">لا تبحث عن مشروع بل عن مال هذا الأسبوع؟</span>
+          <span className="text-rose-200 hidden sm:inline">
+            مسارات تُدرّ دخلاً خلال 72 ساعة بصفر رأس مال
+          </span>
+          <span className="font-bold text-rose-300 underline underline-offset-4 group-hover:text-white transition-colors shrink-0">
+            ابدأ الآن
+          </span>
+        </div>
+      </button>
+
       <section className="bg-stone-900 text-white py-10 px-4 sm:px-6 lg:px-8 border-b border-stone-800">
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
@@ -419,6 +441,12 @@ export default function App() {
       <IdeaMatchmakerQuiz
         isOpen={isQuizOpen}
         onClose={() => setIsQuizOpen(false)}
+        onSelectProject={handleViewDetails}
+      />
+
+      <EmergencyCashMode
+        isOpen={isEmergencyOpen}
+        onClose={() => setIsEmergencyOpen(false)}
         onSelectProject={handleViewDetails}
       />
 
