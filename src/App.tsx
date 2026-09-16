@@ -16,10 +16,14 @@ import {
   ArrowUpDown,
   Zap,
   Radar,
-  Gamepad2
+  Gamepad2,
+  Scale,
+  Star
 } from 'lucide-react';
 import { ProjectIdea, ProjectCategory } from './types';
 import { PROJECT_IDEAS, CATEGORIES_CONFIG } from './data/projectsData';
+import { calculateProjectRating, CalculatedRating } from './data/ratingsData';
+import { useLanguage } from './context/LanguageContext';
 import { Header } from './components/Header';
 import { ProjectCard } from './components/ProjectCard';
 import { ProjectDetailModal } from './components/ProjectDetailModal';
@@ -30,11 +34,15 @@ import { FavoritesDrawer } from './components/FavoritesDrawer';
 import { EmergencyCashMode } from './components/EmergencyCashMode';
 import { AssetScanner } from './components/AssetScanner';
 import { BusinessSimulator } from './components/BusinessSimulator';
+import { ProjectComparisonDrawer } from './components/ProjectComparisonDrawer';
+import { ComparisonFloatingBar } from './components/ComparisonFloatingBar';
 
 export default function App() {
+  const { t, isRTL, language, getLocalizedProject } = useLanguage();
+
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<ProjectCategory>('all');
-  const [sortBy, setSortBy] = useState<'profit' | 'capital' | 'speed'>('profit');
+  const [sortBy, setSortBy] = useState<'profit' | 'capital' | 'speed' | 'rating'>('rating');
 
   // Modals & Drawers state
   const [selectedProjectForDetail, setSelectedProjectForDetail] = useState<ProjectIdea | null>(null);
@@ -51,7 +59,100 @@ export default function App() {
   const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState<boolean>(false);
+  const [isComparisonOpen, setIsComparisonOpen] = useState<boolean>(false);
   const [aiSeedTitle, setAiSeedTitle] = useState<string | null>(null);
+
+  // Localized projects list
+  const localizedProjects = useMemo(() => {
+    return PROJECT_IDEAS.map((p) => getLocalizedProject(p));
+  }, [getLocalizedProject, language]);
+
+  // Ratings state persisted in localStorage
+  const [userRatings, setUserRatings] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('user_project_ratings');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const handleRateProject = (projectId: string, score: number) => {
+    setUserRatings((prev) => {
+      const updated = { ...prev, [projectId]: score };
+      try {
+        localStorage.setItem('user_project_ratings', JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+  };
+
+  // Calculated ratings map for all projects
+  const calculatedRatings = useMemo(() => {
+    const map: Record<string, CalculatedRating> = {};
+    for (const project of PROJECT_IDEAS) {
+      map[project.id] = calculateProjectRating(project.id, userRatings);
+    }
+    return map;
+  }, [userRatings]);
+
+  // Comparison state (IDs of projects selected for comparison)
+  const [selectedForCompare, setSelectedForCompare] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('selected_compare_projects');
+      return saved ? JSON.parse(saved) : ['social-media-management', 'gift-boxes-packaging'];
+    } catch {
+      return ['social-media-management', 'gift-boxes-packaging'];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('selected_compare_projects', JSON.stringify(selectedForCompare));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [selectedForCompare]);
+
+  const handleToggleCompare = (id: string) => {
+    setSelectedForCompare((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((item) => item !== id);
+      }
+      if (prev.length >= 5) {
+        alert(t('compare_max_alert'));
+        return prev;
+      }
+      return [...prev, id];
+    });
+  };
+
+  const handleRemoveFromCompare = (id: string) => {
+    setSelectedForCompare((prev) => prev.filter((item) => item !== id));
+  };
+
+  const handleAddToCompare = (id: string) => {
+    setSelectedForCompare((prev) => {
+      if (prev.includes(id)) return prev;
+      if (prev.length >= 5) {
+        alert(t('compare_max_alert'));
+        return prev;
+      }
+      return [...prev, id];
+    });
+  };
+
+  const handleClearCompare = () => {
+    setSelectedForCompare([]);
+  };
+
+  const selectedProjectsForCompare = useMemo(() => {
+    return selectedForCompare
+      .map((id) => localizedProjects.find((p) => p.id === id))
+      .filter((p): p is ProjectIdea => Boolean(p));
+  }, [selectedForCompare, localizedProjects]);
 
   // Favorites state persisted in localStorage
   const [favorites, setFavorites] = useState<string[]>(() => {
@@ -81,12 +182,23 @@ export default function App() {
     setFavorites([]);
   };
 
+  // Category labels map
+  const categoryLabels: Record<string, string> = {
+    all: t('cat_all'),
+    'zero-capital': t('cat_zero_capital'),
+    'home-based': t('cat_home_based'),
+    digital: t('cat_digital'),
+    services: t('cat_services'),
+    'food-crafts': t('cat_food_crafts'),
+    'micro-commerce': t('cat_micro_commerce'),
+  };
+
   // Filtered & Sorted Projects
   const filteredProjects = useMemo(() => {
-    return PROJECT_IDEAS.filter((p) => {
+    return localizedProjects.filter((p) => {
       // Category filter
       if (selectedCategory === 'zero-capital' && p.capitalRange.min > 0) return false;
-      if (selectedCategory === 'home-based' && !p.workLocation.includes('المنزل')) return false;
+      if (selectedCategory === 'home-based' && !p.workLocation.includes('المنزل') && !p.workLocation.toLowerCase().includes('home')) return false;
       if (selectedCategory !== 'all' && selectedCategory !== 'zero-capital' && selectedCategory !== 'home-based') {
         if (p.category !== selectedCategory) return false;
       }
@@ -103,6 +215,12 @@ export default function App() {
 
       return true;
     }).sort((a, b) => {
+      if (sortBy === 'rating') {
+        const rA = calculatedRatings[a.id]?.average || 0;
+        const rB = calculatedRatings[b.id]?.average || 0;
+        if (rB !== rA) return rB - rA;
+        return (calculatedRatings[b.id]?.count || 0) - (calculatedRatings[a.id]?.count || 0);
+      }
       if (sortBy === 'profit') {
         return b.monthlyProfitRange.max - a.monthlyProfitRange.max;
       }
@@ -114,7 +232,7 @@ export default function App() {
       }
       return 0;
     });
-  }, [selectedCategory, searchQuery, sortBy]);
+  }, [selectedCategory, searchQuery, sortBy, calculatedRatings, localizedProjects]);
 
   // Handlers for launching modals with a specific project
   const handleViewDetails = (project: ProjectIdea) => {
@@ -140,6 +258,10 @@ export default function App() {
     setIsAiOpen(true);
   };
 
+  const activeDetailProject = selectedProjectForDetail 
+    ? (localizedProjects.find(p => p.id === selectedProjectForDetail.id) || getLocalizedProject(selectedProjectForDetail))
+    : null;
+
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col font-['Cairo',system-ui,sans-serif]">
       {/* Sticky Header */}
@@ -154,6 +276,8 @@ export default function App() {
         onOpenEmergencyCash={() => setIsEmergencyOpen(true)}
         onOpenAssetScanner={() => setIsScannerOpen(true)}
         onOpenSimulator={() => setIsSimulatorOpen(true)}
+        comparisonCount={selectedForCompare.length}
+        onOpenComparison={() => setIsComparisonOpen(true)}
       />
 
       {/* Hero Section */}
@@ -165,12 +289,12 @@ export default function App() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-center gap-2.5 text-xs sm:text-sm">
           <Zap className="w-4 h-4 text-rose-400 shrink-0" />
-          <span className="font-bold">لا تبحث عن مشروع بل عن مال هذا الأسبوع؟</span>
+          <span className="font-bold">{t('strip_emergency_question')}</span>
           <span className="text-rose-200 hidden sm:inline">
-            مسارات تُدرّ دخلاً خلال 72 ساعة بصفر رأس مال
+            {t('strip_emergency_sub')}
           </span>
           <span className="font-bold text-rose-300 underline underline-offset-4 group-hover:text-white transition-colors shrink-0">
-            ابدأ الآن
+            {t('strip_emergency_btn')}
           </span>
         </div>
       </button>
@@ -181,25 +305,24 @@ export default function App() {
             <div className="max-w-2xl space-y-3">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950 border border-emerald-800 text-emerald-400 text-xs font-semibold">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>دليل عملي شامل لبدء مشروع مربح اليوم</span>
+                <span>{t('hero_badge')}</span>
               </div>
               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-snug">
-                أفكار مشاريع سهلة، منخفضة المخاطر، وبأرباح مجزية
+                {t('hero_title')}
               </h2>
               <p className="text-stone-300 text-sm sm:text-base leading-relaxed">
-                اكتشف 12+ فكرة استثمارية مصغرة تم انتقاؤها بعناية: برؤوس أموال تبدأ من $0 وحتى $150، 
-                وهوامش ربح تتراوح بين 50% إلى 95%، مع دراسات جدوى وخطوات تنفيذ واقعية.
+                {t('hero_desc')}
               </p>
             </div>
 
             {/* Quick Action CTA Box */}
             <div className="w-full lg:w-auto bg-stone-800/80 p-5 rounded-2xl border border-stone-700/80 flex flex-col sm:flex-row items-center gap-4">
-              <div className="text-right flex-1">
+              <div className={`${isRTL ? 'text-right' : 'text-left'} flex-1`}>
                 <span className="text-xs font-bold text-emerald-400 block mb-1">
-                  محتار في اختيار الفكرة المناسبة؟
+                  {t('hero_quiz_callout')}
                 </span>
                 <p className="text-xs text-stone-300">
-                  أجب عن 4 أسئلة سريعة لاقتراح المشروع الأنسب لميزانيتك ووقتك
+                  {t('hero_quiz_sub')}
                 </p>
               </div>
               <div className="flex flex-col gap-2 w-full sm:w-auto shrink-0">
@@ -209,15 +332,15 @@ export default function App() {
                   className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2"
                 >
                   <Compass className="w-4 h-4" />
-                  <span>بدء اختبار المشروع الأنسب</span>
+                  <span>{t('hero_btn_quiz')}</span>
                 </button>
                 <button
-                  id="btn-hero-scanner"
-                  onClick={() => setIsScannerOpen(true)}
-                  className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2"
+                  id="btn-hero-compare"
+                  onClick={() => setIsComparisonOpen(true)}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-stone-700 hover:bg-stone-600 text-stone-100 font-bold text-xs rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2 border border-stone-600"
                 >
-                  <Radar className="w-4 h-4" />
-                  <span>ولّد فكرة من أصولك أنت</span>
+                  <Scale className="w-4 h-4 text-emerald-400" />
+                  <span>{t('hero_btn_compare')} ({selectedForCompare.length})</span>
                 </button>
               </div>
             </div>
@@ -230,8 +353,8 @@ export default function App() {
                 <DollarSign className="w-4 h-4" />
               </div>
               <div>
-                <span className="font-bold text-stone-200 block">تكلفة تأسيس شبه منعدمة</span>
-                <span className="text-stone-400 text-[11px]">تبدأ من هاتفك دون الحاجة لقروض أو التزامات</span>
+                <span className="font-bold text-stone-200 block">{t('hero_stat_zero_capex')}</span>
+                <span className="text-stone-400 text-[11px]">{t('hero_stat_zero_capex_desc')}</span>
               </div>
             </div>
 
@@ -240,8 +363,8 @@ export default function App() {
                 <TrendingUp className="w-4 h-4" />
               </div>
               <div>
-                <span className="font-bold text-stone-200 block">هوامش ربح مرتفعة (60%+)</span>
-                <span className="text-stone-400 text-[11px]">مشاريع خدمية ورقمية ذات عائد صافٍ مباشر</span>
+                <span className="font-bold text-stone-200 block">{t('hero_stat_high_margins')}</span>
+                <span className="text-stone-400 text-[11px]">{t('hero_stat_high_margins_desc')}</span>
               </div>
             </div>
 
@@ -250,8 +373,8 @@ export default function App() {
                 <Clock className="w-4 h-4" />
               </div>
               <div>
-                <span className="font-bold text-stone-200 block">سرعة جني أول دخل</span>
-                <span className="text-stone-400 text-[11px]">استرداد التكاليف خلال 3 إلى 14 يوماً من الإطلاق</span>
+                <span className="font-bold text-stone-200 block">{t('hero_stat_speed_payback')}</span>
+                <span className="text-stone-400 text-[11px]">{t('hero_stat_speed_payback_desc')}</span>
               </div>
             </div>
           </div>
@@ -262,7 +385,7 @@ export default function App() {
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6">
         
-        {/* Category Navigation Tabs */}
+        {/* Category Navigation Tabs & Sort */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 border-b border-stone-200 pb-4">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
             {CATEGORIES_CONFIG.map((cat) => (
@@ -276,7 +399,7 @@ export default function App() {
                     : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'
                 }`}
               >
-                <span>{cat.label}</span>
+                <span>{categoryLabels[cat.id as ProjectCategory] || cat.label}</span>
               </button>
             ))}
           </div>
@@ -285,7 +408,7 @@ export default function App() {
           <div className="flex items-center justify-between sm:justify-end gap-2 text-xs">
             <span className="text-stone-500 font-medium flex items-center gap-1">
               <ArrowUpDown className="w-3.5 h-3.5" />
-              الترتيب:
+              {t('sort_label')}
             </span>
             <select
               id="select-sort"
@@ -293,23 +416,43 @@ export default function App() {
               onChange={(e) => setSortBy(e.target.value as any)}
               className="bg-white border border-stone-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="profit">الأعلى ربحاً شهرياً</option>
-              <option value="capital">الأقل تكلفة للبدء</option>
-              <option value="speed">الأسرع في جني الأرباح</option>
+              <option value="rating">{t('sort_rating')}</option>
+              <option value="profit">{t('sort_profit')}</option>
+              <option value="capital">{t('sort_capital')}</option>
+              <option value="speed">{t('sort_speed')}</option>
             </select>
           </div>
         </div>
 
-        {/* Results Counter & Active Filter info */}
+        {/* Results Counter & Comparison shortcut */}
         <div className="flex items-center justify-between text-xs text-stone-500">
-          <span>
-            يتم عرض <strong>{filteredProjects.length}</strong> فكرة مشروع متوافقة
-          </span>
-          {searchQuery && (
-            <span className="bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full font-medium">
-              نتائج البحث عن: "{searchQuery}"
+          <div className="flex items-center gap-2">
+            <span>
+              {t('results_showing')} <strong>{filteredProjects.length}</strong> {t('results_ideas')}
             </span>
-          )}
+            {sortBy === 'rating' && (
+              <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md font-medium">
+                {t('results_sorted_by_rating')}
+              </span>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {searchQuery && (
+              <span className="bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full font-medium">
+                {t('results_search_for')} "{searchQuery}"
+              </span>
+            )}
+            {selectedForCompare.length >= 2 && (
+              <button
+                onClick={() => setIsComparisonOpen(true)}
+                className="text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 transition-colors"
+              >
+                <Scale className="w-3.5 h-3.5" />
+                <span>{t('results_view_compare')} ({selectedForCompare.length})</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Projects Cards Grid */}
@@ -317,10 +460,10 @@ export default function App() {
           <div className="text-center py-20 bg-white rounded-2xl border border-stone-200 p-6">
             <Lightbulb className="w-12 h-12 text-stone-300 mx-auto mb-3" />
             <h3 className="text-base font-bold text-stone-800 mb-1">
-              لم يتم العثور على أفكار تطابق بحثك
+              {t('search_empty_title')}
             </h3>
             <p className="text-xs text-stone-500 mb-4">
-              جرب كلمات بحث أخرى أو اختر تصنيفاً عاماً لتصفح جميع المشاريع المتاحة.
+              {t('search_empty_desc')}
             </p>
             <button
               onClick={() => {
@@ -329,7 +472,7 @@ export default function App() {
               }}
               className="px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl"
             >
-              عرض جميع المشاريع
+              {t('search_empty_btn')}
             </button>
           </div>
         ) : (
@@ -343,6 +486,10 @@ export default function App() {
                 onViewDetails={handleViewDetails}
                 onCalculate={() => handleOpenCalculator(project)}
                 onGeneratePlan={() => handleOpenAiPlanner(project)}
+                ratingInfo={calculatedRatings[project.id] || { average: 4.8, count: 50, userRating: null }}
+                onRate={handleRateProject}
+                isSelectedForCompare={selectedForCompare.includes(project.id)}
+                onToggleCompare={handleToggleCompare}
               />
             ))}
           </div>
@@ -353,22 +500,21 @@ export default function App() {
           <div className="max-w-3xl space-y-4">
             <span className="text-xs font-bold text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200 inline-flex items-center gap-1.5">
               <Radar className="w-3.5 h-3.5 text-indigo-600" />
-              ماسح الأصول
+              {t('scanner_box_badge')}
             </span>
             <h3 className="text-xl sm:text-2xl font-extrabold text-stone-950 leading-snug">
-              لم تجد فكرتك في القائمة؟ لأن فكرتك ليست في أي قائمة.
+              {t('scanner_box_title')}
             </h3>
             <p className="text-stone-600 text-xs sm:text-sm leading-relaxed">
-              أفضل المشاريع لا تأتي من تقليد الآخرين، بل من دمج ما تملكه أنت ولا يملكه غيرك مجتمعاً.
-              أخبرنا بأصولك — أدواتك، مساحتك، وقتك، مهاراتك، ومن تعرفهم — ونولّد لك أفكاراً تنشأ من تركيبتك وحدها.
+              {t('scanner_box_desc')}
             </p>
             <div className="flex flex-wrap items-center gap-2 text-xs text-stone-700">
-              <span className="px-2.5 py-1 rounded-full bg-stone-100 border border-stone-200 font-semibold">سيارة</span>
+              <span className="px-2.5 py-1 rounded-full bg-stone-100 border border-stone-200 font-semibold">{t('scanner_pill_car')}</span>
               <span className="text-indigo-500 font-bold">+</span>
-              <span className="px-2.5 py-1 rounded-full bg-stone-100 border border-stone-200 font-semibold">تعرف طلاباً</span>
+              <span className="px-2.5 py-1 rounded-full bg-stone-100 border border-stone-200 font-semibold">{t('scanner_pill_students')}</span>
               <span className="text-indigo-500 font-bold">=</span>
               <span className="px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 font-bold text-indigo-900">
-                اشتراك توصيل شهري للسكن الجامعي
+                {t('scanner_pill_result')}
               </span>
             </div>
             <div className="pt-2">
@@ -378,7 +524,7 @@ export default function App() {
                 className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-2"
               >
                 <Radar className="w-4 h-4" />
-                <span>افحص أصولي الآن</span>
+                <span>{t('scanner_btn_start')}</span>
               </button>
             </div>
           </div>
@@ -389,20 +535,18 @@ export default function App() {
           <div className="max-w-2xl space-y-4">
             <span className="text-xs font-bold text-violet-300 bg-violet-500/15 px-2.5 py-1 rounded-full border border-violet-500/30 inline-flex items-center gap-1.5">
               <Gamepad2 className="w-3.5 h-3.5" />
-              محاكي المشروع
+              {t('sim_box_badge')}
             </span>
             <h3 className="text-xl sm:text-2xl font-extrabold text-white leading-snug">
-              جرّب إدارة مشروع لسنة كاملة قبل أن تخاطر بدينار واحد
+              {t('sim_box_title')}
             </h3>
             <p className="text-stone-300 text-xs sm:text-sm leading-relaxed">
-              ابدأ بـ 100$ افتراضية وأدِر 12 شهراً: سعّر منتجك، قرر كم تنتج، وزّع ميزانية تسويقك،
-              وواجه ما يواجهه أصحاب المشاريع فعلاً — ارتفاع أسعار المواد، منافس يفتح بجوارك،
-              وطلبية كبيرة بسعر مخفّض. في النهاية تقرأ تقريراً صريحاً بما أخطأت فيه.
+              {t('sim_box_desc')}
             </p>
             <div className="flex flex-wrap items-center gap-2 text-[11px] text-stone-300">
-              <span className="px-2.5 py-1 rounded-full bg-white/10 border border-white/15">أخطئ هنا لا في الواقع</span>
-              <span className="px-2.5 py-1 rounded-full bg-white/10 border border-white/15">14 حدثاً واقعياً</span>
-              <span className="px-2.5 py-1 rounded-full bg-white/10 border border-white/15">تقرير بأخطائك</span>
+              <span className="px-2.5 py-1 rounded-full bg-white/10 border border-white/15">{t('sim_pill_safe')}</span>
+              <span className="px-2.5 py-1 rounded-full bg-white/10 border border-white/15">{t('sim_pill_events')}</span>
+              <span className="px-2.5 py-1 rounded-full bg-white/10 border border-white/15">{t('sim_pill_report')}</span>
             </div>
             <div className="pt-2">
               <button
@@ -411,7 +555,7 @@ export default function App() {
                 className="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-2"
               >
                 <Gamepad2 className="w-4 h-4" />
-                <span>ابدأ محاكاة 12 شهراً</span>
+                <span>{t('sim_btn_start')}</span>
               </button>
             </div>
           </div>
@@ -422,14 +566,13 @@ export default function App() {
           <div className="relative z-10 max-w-2xl space-y-3">
             <span className="text-xs font-bold text-emerald-400 bg-emerald-900/60 px-2.5 py-1 rounded-full border border-emerald-700/50 inline-flex items-center gap-1.5">
               <Bot className="w-3.5 h-3.5" />
-              مساعد ريادة الأعمال بالذكاء الاصطناعي
+              {t('banner_ai_badge')}
             </span>
             <h3 className="text-xl sm:text-2xl font-extrabold text-white">
-              لديك فكرة أخرى خاصة بك وتريد دراسة جدوى لها في ثوانٍ؟
+              {t('banner_ai_title')}
             </h3>
             <p className="text-stone-300 text-xs sm:text-sm leading-relaxed">
-              استخدم نموذج الذكاء الاصطناعي المدمج لتحليل فكرتك، تقدير التكاليف، 
-              وتحديد خطة إطلاق في 7 أيام مع خطوات استقطاب أول زبون دون إنفاق باهظ.
+              {t('banner_ai_desc')}
             </p>
             <div className="pt-2">
               <button
@@ -438,7 +581,7 @@ export default function App() {
                 className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>توليد دراسة جدوى مخصصة الآن</span>
+                <span>{t('banner_ai_btn')}</span>
               </button>
             </div>
           </div>
@@ -449,10 +592,10 @@ export default function App() {
           <div className="border-b border-stone-100 pb-4">
             <h3 className="text-lg font-bold text-stone-950 flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-emerald-700" />
-              4 قواعد ذهبية لضمان نجاح أي مشروع صغير وتفادي الخسارة
+              {t('rules_title')}
             </h3>
             <p className="text-xs text-stone-500 mt-1">
-              نصائح جوهرية من واقع تجارب رواد الأعمال والمشاريع المصغرة الرابحة
+              {t('rules_sub')}
             </p>
           </div>
 
@@ -461,9 +604,9 @@ export default function App() {
               <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs">
                 1
               </div>
-              <h4 className="font-bold text-stone-900 text-sm">ابدأ بنظام الطلب المسبق</h4>
+              <h4 className="font-bold text-stone-900 text-sm">{t('rule_1_title')}</h4>
               <p className="text-stone-600 leading-relaxed text-[11px]">
-                لا تشترِ مخزوناً كبيراً من البداية. اعرض نماذج واضحة واطلب عربوناً مقدماً من العميل لتغطية تكاليف المواد وضمان الجدية.
+                {t('rule_1_desc')}
               </p>
             </div>
 
@@ -471,9 +614,9 @@ export default function App() {
               <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs">
                 2
               </div>
-              <h4 className="font-bold text-stone-900 text-sm">حل مشكلة واضحة</h4>
+              <h4 className="font-bold text-stone-900 text-sm">{t('rule_2_title')}</h4>
               <p className="text-stone-600 leading-relaxed text-[11px]">
-                الناس يدفعون بسخاء لمن يوفر عليهم الوقت، الجهد، أو الإحراج (مثل تنظيم الخزائن، تنظيف السيارات عند الباب، أو السيرة الذاتية).
+                {t('rule_2_desc')}
               </p>
             </div>
 
@@ -481,9 +624,9 @@ export default function App() {
               <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs">
                 3
               </div>
-              <h4 className="font-bold text-stone-900 text-sm">قوة التسويق بالمحتوى</h4>
+              <h4 className="font-bold text-stone-900 text-sm">{t('rule_3_title')}</h4>
               <p className="text-stone-600 leading-relaxed text-[11px]">
-                فيديوهات كواليس التحضير (Behind The Scenes) وتوثيق النتائج الواقعية على تيك توك وإنستغرام تجلب آلاف الزبائن مجاناً دون إعلانات.
+                {t('rule_3_desc')}
               </p>
             </div>
 
@@ -491,9 +634,9 @@ export default function App() {
               <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs">
                 4
               </div>
-              <h4 className="font-bold text-stone-900 text-sm">إعادة استثمار أول أرباح</h4>
+              <h4 className="font-bold text-stone-900 text-sm">{t('rule_4_title')}</h4>
               <p className="text-stone-600 leading-relaxed text-[11px]">
-                في أول 3 إلى 6 أشهر، أعد استثمار 40% من صافي ربحك في تحسين التغليف، شراء أدوات أسرع، وتوسيع سلة المنتجات لزيادة الدخل.
+                {t('rule_4_desc')}
               </p>
             </div>
           </div>
@@ -501,13 +644,21 @@ export default function App() {
 
       </main>
 
+      {/* Floating Comparison Bottom Dock */}
+      <ComparisonFloatingBar
+        selectedProjects={selectedProjectsForCompare}
+        onOpenComparison={() => setIsComparisonOpen(true)}
+        onClearComparison={handleClearCompare}
+        onRemoveProject={handleRemoveFromCompare}
+      />
+
       {/* Footer */}
       <footer className="bg-white border-t border-stone-200 py-6 px-4 text-center text-xs text-stone-500 space-y-1">
         <p className="font-semibold text-stone-800">
-          منصة أفكار مشاريع سهلة ومربحة &copy; 2026
+          {t('footer_copy')}
         </p>
         <p>
-          دليلك التفاعلي لدراسات الجدوى السريعة، حاسبة الأرباح، ونماذج العمل الناجحة
+          {t('footer_sub')}
         </p>
       </footer>
 
@@ -520,6 +671,24 @@ export default function App() {
         onToggleFavorite={toggleFavorite}
         onOpenCalculatorWithProject={handleOpenCalculator}
         onOpenAiPlannerWithProject={handleOpenAiPlanner}
+        ratingInfo={selectedProjectForDetail ? (calculatedRatings[selectedProjectForDetail.id] || { average: 4.8, count: 50, userRating: null }) : undefined}
+        onRate={handleRateProject}
+        isSelectedForCompare={selectedProjectForDetail ? selectedForCompare.includes(selectedProjectForDetail.id) : false}
+        onToggleCompare={handleToggleCompare}
+      />
+
+      <ProjectComparisonDrawer
+        isOpen={isComparisonOpen}
+        onClose={() => setIsComparisonOpen(false)}
+        selectedProjects={selectedProjectsForCompare}
+        allProjects={localizedProjects}
+        onRemoveProject={handleRemoveFromCompare}
+        onAddProject={handleAddToCompare}
+        onClearAll={handleClearCompare}
+        onOpenCalculator={handleOpenCalculator}
+        onOpenDetails={handleViewDetails}
+        onOpenAiPlan={handleOpenAiPlanner}
+        ratings={calculatedRatings}
       />
 
       <ProfitCalculator

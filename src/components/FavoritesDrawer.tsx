@@ -4,12 +4,14 @@ import {
   Bookmark, 
   Trash2, 
   ChevronLeft, 
+  ChevronRight,
   Calculator, 
   Sparkles, 
   DollarSign 
 } from 'lucide-react';
 import { ProjectIdea } from '../types';
 import { PROJECT_IDEAS } from '../data/projectsData';
+import { useLanguage } from '../context/LanguageContext';
 
 interface FavoritesDrawerProps {
   isOpen: boolean;
@@ -30,9 +32,13 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
   onSelectProject,
   onOpenCalculatorWithProject,
 }) => {
+  const { t, isRTL, getLocalizedProject } = useLanguage();
+
   if (!isOpen) return null;
 
-  const favoriteProjects = PROJECT_IDEAS.filter((p) => favorites.includes(p.id));
+  const favoriteProjects = PROJECT_IDEAS
+    .filter((p) => favorites.includes(p.id))
+    .map((p) => getLocalizedProject(p));
 
   // Compute minimum combined profit potential
   const minCombinedProfit = favoriteProjects.reduce(
@@ -41,17 +47,21 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-black/40 backdrop-blur-xs flex justify-end">
+    <div 
+      className={`fixed inset-0 z-50 overflow-hidden bg-black/40 backdrop-blur-xs flex ${
+        isRTL ? 'justify-start' : 'justify-end'
+      }`}
+    >
       <div 
         id="drawer-favorites"
-        className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col justify-between border-r border-stone-200 animate-slideLeft"
+        className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col justify-between border-stone-200 animate-fadeIn"
       >
         {/* Drawer Header */}
         <div className="p-4 sm:p-5 border-b border-stone-200 flex items-center justify-between bg-stone-50/70">
           <div className="flex items-center gap-2">
             <Bookmark className="w-5 h-5 text-amber-600 fill-amber-500" />
             <h2 className="text-base font-bold text-stone-900">
-              المشاريع المحفوظة ({favoriteProjects.length})
+              {t('fav_drawer_title')} ({favoriteProjects.length})
             </h2>
           </div>
 
@@ -60,14 +70,15 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
               <button
                 onClick={onClearFavorites}
                 className="text-[11px] text-rose-600 hover:text-rose-800 font-semibold px-2 py-1 rounded-lg hover:bg-rose-50 transition-colors"
-                title="مسح الكل"
+                title={t('fav_clear_all')}
               >
-                مسح الكل
+                {t('fav_clear_all')}
               </button>
             )}
             <button
               onClick={onClose}
               className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100"
+              aria-label={t('modal_close')}
             >
               <X className="w-5 h-5" />
             </button>
@@ -82,10 +93,10 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
                 <Bookmark className="w-6 h-6" />
               </div>
               <p className="font-bold text-stone-800 text-sm mb-1">
-                لا توجد مشاريع في المفضلة حتى الآن
+                {t('fav_empty_title')}
               </p>
               <p className="text-stone-500 text-xs leading-relaxed max-w-xs mx-auto">
-                اضغط على أيقونة الإشارة المرجعية على أي فكرة مشروع لحفظها هنا ومقارنتها لاحقاً.
+                {t('fav_empty_desc')}
               </p>
             </div>
           ) : (
@@ -93,13 +104,13 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
               {/* Potential Metric Box */}
               <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between">
                 <div>
-                  <span className="text-[11px] text-emerald-800 block">إجمالي العائد المحتمل شهرياً:</span>
+                  <span className="text-[11px] text-emerald-800 block">{t('fav_potential_label')}</span>
                   <span className="font-extrabold text-emerald-950 text-sm">
-                    يفوق ${minCombinedProfit} شهرياً
+                    {t('fav_potential_prefix')}{minCombinedProfit.toLocaleString()}{t('fav_monthly_suffix')}
                   </span>
                 </div>
                 <span className="text-xs bg-emerald-600 text-white font-bold px-2.5 py-1 rounded-lg">
-                  {favoriteProjects.length} أفكار
+                  {favoriteProjects.length} {t('fav_ideas_count')}
                 </span>
               </div>
 
@@ -117,14 +128,14 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
                       <button
                         onClick={() => onToggleFavorite(proj.id)}
                         className="text-stone-400 hover:text-rose-600 p-1"
-                        title="إزالة من المفضلة"
+                        title={t('card_fav_remove')}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1">
-                      <span>رأس المال: {proj.capitalRange.label}</span>
+                      <span>{t('card_capital_req')}: {proj.capitalRange.label}</span>
                       <span className="font-bold text-emerald-700">
                         {proj.monthlyProfitRange.label}
                       </span>
@@ -138,8 +149,8 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
                         }}
                         className="flex-1 py-1.5 px-2 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg font-semibold text-stone-800 text-[11px] flex items-center justify-center gap-1"
                       >
-                        <span>التفاصيل</span>
-                        <ChevronLeft className="w-3.5 h-3.5" />
+                        <span>{t('fav_btn_details')}</span>
+                        {isRTL ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                       </button>
 
                       <button
@@ -148,7 +159,7 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
                           onOpenCalculatorWithProject(proj);
                         }}
                         className="p-1.5 bg-white hover:bg-emerald-50 border border-stone-200 text-stone-700 hover:text-emerald-700 rounded-lg text-[11px]"
-                        title="حساب الأرباح"
+                        title={t('fav_btn_calc')}
                       >
                         <Calculator className="w-3.5 h-3.5" />
                       </button>
@@ -166,7 +177,7 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
             onClick={onClose}
             className="w-full py-2 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl text-xs transition-colors"
           >
-            إغلاق
+            {t('fav_close_btn')}
           </button>
         </div>
 

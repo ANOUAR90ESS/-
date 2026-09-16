@@ -125,8 +125,8 @@ async function startServer() {
       return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
     };
 
-    // Try multiple models in case of high demand / 503 spike on specific versions
-    const candidateModels = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.1-flash-lite"];
+    // Candidate models in order of speed, reliability, and availability
+    const candidateModels = ["gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.8-flash"];
     let lastError: any = null;
 
     for (const modelName of candidateModels) {
@@ -189,14 +189,14 @@ async function startServer() {
           }
         });
 
-        const response: any = await withTimeout(generatePromise, 7000);
+        const response: any = await withTimeout(generatePromise, 10000);
 
         const responseText = response.text || "{}";
         let planJson;
         try {
           planJson = JSON.parse(responseText.trim());
         } catch (e) {
-          const cleaned = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
+          const cleaned = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
           planJson = JSON.parse(cleaned);
         }
 
@@ -204,9 +204,8 @@ async function startServer() {
           return res.json({ plan: planJson });
         }
       } catch (err: any) {
-        console.warn(`Model ${modelName} attempt failed (e.g. 503 spike or timeout), trying next candidate:`, err?.message || err);
         lastError = err;
-        // Continue to next candidate model
+        // Proceed gracefully to next candidate model
       }
     }
 
@@ -300,7 +299,7 @@ async function startServer() {
 }
 اكتب 4 أفكار مختلفة تماماً عن بعضها.`;
 
-    const candidateModels = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.1-flash-lite"];
+    const candidateModels = ["gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.8-flash"];
     let lastError: any = null;
 
     for (const modelName of candidateModels) {
@@ -320,23 +319,29 @@ async function startServer() {
           }
         });
 
-        const response: any = await withTimeout(generatePromise, 9000);
+        const response: any = await withTimeout(generatePromise, 12000);
         const responseText = response.text || "{}";
 
         let parsed;
         try {
           parsed = JSON.parse(responseText.trim());
         } catch {
-          const cleaned = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
+          const cleaned = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
           parsed = JSON.parse(cleaned);
         }
 
-        if (parsed && Array.isArray(parsed.ideas) && parsed.ideas.length > 0) {
-          const ideas = parsed.ideas.slice(0, 4).map((idea: any, i: number) => ({
+        const rawIdeas = Array.isArray(parsed)
+          ? parsed
+          : Array.isArray(parsed?.ideas)
+          ? parsed.ideas
+          : [];
+
+        if (rawIdeas.length > 0) {
+          const ideas = rawIdeas.slice(0, 4).map((idea: any, i: number) => ({
             id: `ai-${Date.now()}-${i}`,
-            title: idea.title || "فكرة مخصصة",
+            title: idea.title || idea.project_name || "فكرة مخصصة",
             assetCombo: Array.isArray(idea.assetCombo) ? idea.assetCombo.slice(0, 4) : [],
-            whyYou: idea.whyYou || "",
+            whyYou: idea.whyYou || idea.description || "",
             whoPays: idea.whoPays || "",
             firstStepToday: idea.firstStepToday || "",
             startupCost: idea.startupCost || "غير محدد",
@@ -348,8 +353,8 @@ async function startServer() {
           return res.json({ ideas });
         }
       } catch (err: any) {
-        console.warn(`Asset scan via ${modelName} failed, trying next candidate:`, err?.message || err);
         lastError = err;
+        // Proceed gracefully to next candidate model
       }
     }
 
