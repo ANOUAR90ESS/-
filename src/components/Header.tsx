@@ -9,7 +9,8 @@ import {
   TrendingUp,
   Zap,
   Radar,
-  Gamepad2 
+  Gamepad2,
+  Camera 
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -23,6 +24,7 @@ interface HeaderProps {
   onOpenEmergencyCash: () => void;
   onOpenAssetScanner: () => void;
   onOpenSimulator: () => void;
+  onOpenPhotoStudio: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -36,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenEmergencyCash,
   onOpenAssetScanner,
   onOpenSimulator,
+  onOpenPhotoStudio,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200">
@@ -126,6 +129,15 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Radar className="w-4 h-4 text-indigo-600" />
               ماسح الأصول
+            </button>
+
+            <button
+              id="btn-nav-photo-studio"
+              onClick={onOpenPhotoStudio}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-sky-900 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition-colors"
+            >
+              <Camera className="w-4 h-4 text-sky-600" />
+              استوديو صور المنتج
             </button>
 
             <button

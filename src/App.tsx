@@ -16,7 +16,8 @@ import {
   ArrowUpDown,
   Zap,
   Radar,
-  Gamepad2
+  Gamepad2,
+  Camera
 } from 'lucide-react';
 import { ProjectIdea, ProjectCategory } from './types';
 import { PROJECT_IDEAS, CATEGORIES_CONFIG } from './data/projectsData';
@@ -30,6 +31,7 @@ import { FavoritesDrawer } from './components/FavoritesDrawer';
 import { EmergencyCashMode } from './components/EmergencyCashMode';
 import { AssetScanner } from './components/AssetScanner';
 import { BusinessSimulator } from './components/BusinessSimulator';
+import { ProductPhotoStudio } from './components/ProductPhotoStudio';
 
 export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -51,6 +53,7 @@ export default function App() {
   const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState<boolean>(false);
+  const [isStudioOpen, setIsStudioOpen] = useState<boolean>(false);
   const [aiSeedTitle, setAiSeedTitle] = useState<string | null>(null);
 
   // Favorites state persisted in localStorage
@@ -154,6 +157,7 @@ export default function App() {
         onOpenEmergencyCash={() => setIsEmergencyOpen(true)}
         onOpenAssetScanner={() => setIsScannerOpen(true)}
         onOpenSimulator={() => setIsSimulatorOpen(true)}
+        onOpenPhotoStudio={() => setIsStudioOpen(true)}
       />
 
       {/* Hero Section */}
@@ -384,6 +388,40 @@ export default function App() {
           </div>
         </section>
 
+        {/* استوديو صور المنتج: أول مخرَج ملموس يخرج به المستخدم */}
+        <section className="bg-white rounded-2xl border border-sky-200 p-6 sm:p-8">
+          <div className="max-w-3xl space-y-4">
+            <span className="text-xs font-bold text-sky-900 bg-sky-50 px-2.5 py-1 rounded-full border border-sky-200 inline-flex items-center gap-1.5">
+              <Camera className="w-3.5 h-3.5 text-sky-600" />
+              استوديو صور المنتج
+            </span>
+            <h3 className="text-xl sm:text-2xl font-extrabold text-stone-950 leading-snug">
+              صورتك الرديئة هي سبب عدم بيعك — لا سعرك ولا منتجك
+            </h3>
+            <p className="text-stone-600 text-xs sm:text-sm leading-relaxed">
+              صوّر منتجك على طاولة مطبخك، وارفع الصورة هنا: نصحّح الإضاءة، ونزيل صفرة لمبة المنزل،
+              ونبيّض الخلفية، ونخرجها بالمقاس الصحيح لإنستغرام — جاهزة للتنزيل والنشر خلال ثوانٍ.
+              كل ذلك يجري داخل متصفحك، وصورتك لا تُرفع إلى أي خادم.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-stone-700">
+              <span className="px-2.5 py-1 rounded-full bg-stone-100 border border-stone-200 font-semibold">مقارنة قبل/بعد</span>
+              <span className="px-2.5 py-1 rounded-full bg-stone-100 border border-stone-200 font-semibold">4 أنواع منتجات</span>
+              <span className="px-2.5 py-1 rounded-full bg-stone-100 border border-stone-200 font-semibold">منشور وستوري وريلز</span>
+              <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 font-semibold text-emerald-800">بلا إنترنت وبلا رفع</span>
+            </div>
+            <div className="pt-2">
+              <button
+                id="btn-section-photo-studio"
+                onClick={() => setIsStudioOpen(true)}
+                className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-2"
+              >
+                <Camera className="w-4 h-4" />
+                <span>حسّن صورة منتجك الآن</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* قسم محاكي المشروع: التعلّم قبل الخسارة */}
         <section className="bg-gradient-to-l from-violet-950 via-stone-900 to-stone-900 text-white rounded-2xl p-6 sm:p-8 border border-violet-900/50 shadow-md">
           <div className="max-w-2xl space-y-4">
@@ -539,6 +577,11 @@ export default function App() {
         isOpen={isQuizOpen}
         onClose={() => setIsQuizOpen(false)}
         onSelectProject={handleViewDetails}
+      />
+
+      <ProductPhotoStudio
+        isOpen={isStudioOpen}
+        onClose={() => setIsStudioOpen(false)}
       />
 
       <BusinessSimulator
