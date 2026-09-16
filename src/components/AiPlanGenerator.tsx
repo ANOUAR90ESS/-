@@ -20,12 +20,14 @@ interface AiPlanGeneratorProps {
   isOpen: boolean;
   onClose: () => void;
   initialProject?: ProjectIdea | null;
+  seedTitle?: string | null;
 }
 
 export const AiPlanGenerator: React.FC<AiPlanGeneratorProps> = ({
   isOpen,
   onClose,
   initialProject,
+  seedTitle,
 }) => {
   const [projectTitle, setProjectTitle] = useState<string>('');
   const [category, setCategory] = useState<string>('خدمات ومشاريع رقمية من المنزل');
@@ -40,7 +42,10 @@ export const AiPlanGenerator: React.FC<AiPlanGeneratorProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
 
   useEffect(() => {
-    if (initialProject) {
+    if (seedTitle) {
+      // فكرة مولّدة من ماسح الأصول: ليست في قاعدة البيانات، فنبدأ من عنوانها فقط
+      setProjectTitle(seedTitle);
+    } else if (initialProject) {
       setProjectTitle(initialProject.title);
       setCategory(initialProject.badge);
       setBudget(initialProject.capitalRange.label);
@@ -50,7 +55,7 @@ export const AiPlanGenerator: React.FC<AiPlanGeneratorProps> = ({
     } else if (!projectTitle) {
       setProjectTitle('مشروع إدارة صفحات السوشيال ميديا والتسويق للمحلات المحلية');
     }
-  }, [initialProject, isOpen]);
+  }, [initialProject, seedTitle, isOpen]);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();

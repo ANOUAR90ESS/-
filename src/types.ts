@@ -128,3 +128,41 @@ export interface EmergencyCashState {
   doneTasks: Record<string, string[]>;
   earnings: EarningEntry[];
 }
+
+/* ---------- ماسح الأصول: توليد أفكار من تركيبة ما تملكه ---------- */
+
+export interface AssetOption {
+  label: string;
+  keys: string[];
+}
+
+export interface AssetGroup {
+  id: string;
+  label: string;
+  hint: string;
+  icon: string;
+  options: AssetOption[];
+}
+
+export interface ScannedIdea {
+  id: string;
+  title: string;
+  assetCombo: string[];
+  whyYou: string;
+  whoPays: string;
+  firstStepToday: string;
+  startupCost: string;
+  monthlyPotential: string;
+  timeToFirstIncome: string;
+  honestWeakness: string;
+  scaleUp: string;
+}
+
+export interface AssetScanResult {
+  id: string;
+  createdAt: number;
+  assets: string[];
+  city: string;
+  ideas: ScannedIdea[];
+  note?: string;
+}

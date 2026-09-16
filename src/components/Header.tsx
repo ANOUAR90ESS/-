@@ -7,7 +7,8 @@ import {
   Bot, 
   Compass, 
   TrendingUp,
-  Zap 
+  Zap,
+  Radar 
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -19,6 +20,7 @@ interface HeaderProps {
   onOpenAiPlanner: () => void;
   onOpenQuiz: () => void;
   onOpenEmergencyCash: () => void;
+  onOpenAssetScanner: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAiPlanner,
   onOpenQuiz,
   onOpenEmergencyCash,
+  onOpenAssetScanner,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200">
@@ -111,6 +114,15 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Zap className="w-4 h-4 text-rose-600" />
               أحتاج دخلاً هذا الأسبوع
+            </button>
+
+            <button
+              id="btn-nav-asset-scanner"
+              onClick={onOpenAssetScanner}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-colors"
+            >
+              <Radar className="w-4 h-4 text-indigo-600" />
+              ماسح الأصول
             </button>
 
             <button

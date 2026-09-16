@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import { generateIdeasFromAssets, AssetSelection } from "./src/data/assetCombos";
 
 dotenv.config();
 
@@ -215,6 +216,147 @@ async function startServer() {
     return res.json({ 
       plan: buildSmartPlan(),
       note: "تم تجهيز دراسة الجدوى بالاعتماد على خوارزمية الجدوى الذكية نظراً للضغط المؤقت على خوادم الذكاء الاصطناعي."
+    });
+  });
+
+  // Asset Scanner: generate bespoke ideas from the combination of assets a user owns
+  app.post("/api/scan-assets", async (req, res) => {
+    const { selections, city, hoursPerWeek, workStyle } = req.body as {
+      selections?: AssetSelection[];
+      city?: string;
+      hoursPerWeek?: string;
+      workStyle?: string;
+    };
+
+    const safeSelections: AssetSelection[] = Array.isArray(selections)
+      ? selections
+          .filter((s) => s && typeof s.label === "string" && s.label.trim().length > 0)
+          .slice(0, 30)
+          .map((s) => ({
+            label: s.label.trim().slice(0, 80),
+            keys: Array.isArray(s.keys) ? s.keys.slice(0, 6) : []
+          }))
+      : [];
+
+    if (safeSelections.length === 0) {
+      return res.status(400).json({ error: "لم يتم تحديد أي أصل." });
+    }
+
+    const userCity = (city || "").trim().slice(0, 60);
+    const userHours = (hoursPerWeek || "10 - 15 ساعة أسبوعياً").slice(0, 60);
+    const userStyle = (workStyle || "لا يهم").slice(0, 60);
+    const assetList = safeSelections.map((s) => s.label).join("، ");
+
+    // شبكة الأمان: تركيبات محلية تعمل دون أي اتصال
+    const localIdeas = () => generateIdeasFromAssets(safeSelections, 4);
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.json({
+        ideas: localIdeas(),
+        note: "تم توليد الأفكار بمحرّك التركيبات المحلي."
+      });
+    }
+
+    const withTimeout = <T>(promise: Promise<T>, ms = 9000): Promise<T> => {
+      let timer: any;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Request timed out")), ms);
+      });
+      return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+    };
+
+    const prompt = `أنت مستشار ريادة أعمال متخصص في المشاريع المصغّرة في العالم العربي.
+مهمتك ليست اقتراح أفكار عامة معروفة، بل اكتشاف أفكار تنشأ تحديداً من **تركيبة** الأصول التي يملكها هذا الشخص.
+
+الأصول التي يملكها فعلاً: ${assetList}
+المدينة أو البيئة: ${userCity || "غير محددة"}
+الوقت المتاح: ${userHours}
+أسلوب العمل المفضل: ${userStyle}
+
+قواعد صارمة:
+1. كل فكرة يجب أن تنشأ من دمج أصلين أو أكثر من قائمته. اذكر في assetCombo الأصول المستخدمة بنصها كما ورد أعلاه.
+2. لا تقترح فكرة يستطيع أي شخص تنفيذها دون أصوله — الميزة يجب أن تكون نابعة مما يملكه هو.
+3. اذكر في honestWeakness عيباً حقيقياً صريحاً لكل فكرة، لا تجمّل.
+4. التكاليف والأرباح بالدولار وبأرقام واقعية لمشروع مصغّر، لا وعود مبالغ فيها.
+5. أجب بصيغة JSON نقية فقط بدون أي نص خارجها.
+
+البنية المطلوبة:
+{
+  "ideas": [
+    {
+      "title": "عنوان محدد للفكرة",
+      "assetCombo": ["الأصل الأول", "الأصل الثاني"],
+      "whyYou": "لماذا هذا الشخص تحديداً قادر على هذه الفكرة بسبب تركيبة أصوله، وما الميزة التي يمنحها له الدمج",
+      "whoPays": "من سيدفع بالضبط وأين يوجد",
+      "firstStepToday": "خطوة واحدة عملية قابلة للتنفيذ اليوم",
+      "startupCost": "التكلفة المبدئية بالدولار",
+      "monthlyPotential": "الدخل الشهري الواقعي المتوقع بالدولار",
+      "timeToFirstIncome": "المدة حتى أول دخل",
+      "honestWeakness": "العيب أو الخطر الحقيقي في هذه الفكرة بصراحة",
+      "scaleUp": "كيف تكبر الفكرة بعد نجاحها الأول"
+    }
+  ]
+}
+اكتب 4 أفكار مختلفة تماماً عن بعضها.`;
+
+    const candidateModels = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.1-flash-lite"];
+    let lastError: any = null;
+
+    for (const modelName of candidateModels) {
+      try {
+        const ai = new GoogleGenAI({
+          apiKey,
+          httpOptions: { headers: { "User-Agent": "aistudio-build" } }
+        });
+
+        const generatePromise = ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            systemInstruction:
+              "أنت مستشار مشاريع مصغّرة. تكتشف الفرص من تركيبة أصول الشخص لا من قوائم جاهزة. أجب بـ JSON نقي فقط.",
+            responseMimeType: "application/json"
+          }
+        });
+
+        const response: any = await withTimeout(generatePromise, 9000);
+        const responseText = response.text || "{}";
+
+        let parsed;
+        try {
+          parsed = JSON.parse(responseText.trim());
+        } catch {
+          const cleaned = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
+          parsed = JSON.parse(cleaned);
+        }
+
+        if (parsed && Array.isArray(parsed.ideas) && parsed.ideas.length > 0) {
+          const ideas = parsed.ideas.slice(0, 4).map((idea: any, i: number) => ({
+            id: `ai-${Date.now()}-${i}`,
+            title: idea.title || "فكرة مخصصة",
+            assetCombo: Array.isArray(idea.assetCombo) ? idea.assetCombo.slice(0, 4) : [],
+            whyYou: idea.whyYou || "",
+            whoPays: idea.whoPays || "",
+            firstStepToday: idea.firstStepToday || "",
+            startupCost: idea.startupCost || "غير محدد",
+            monthlyPotential: idea.monthlyPotential || "غير محدد",
+            timeToFirstIncome: idea.timeToFirstIncome || "غير محدد",
+            honestWeakness: idea.honestWeakness || "",
+            scaleUp: idea.scaleUp || ""
+          }));
+          return res.json({ ideas });
+        }
+      } catch (err: any) {
+        console.warn(`Asset scan via ${modelName} failed, trying next candidate:`, err?.message || err);
+        lastError = err;
+      }
+    }
+
+    console.info("Falling back to local combination engine for asset scan:", lastError?.message);
+    return res.json({
+      ideas: localIdeas(),
+      note: "تم توليد الأفكار بمحرّك التركيبات المحلي نظراً لضغط مؤقت على خوادم الذكاء الاصطناعي."
     });
   });
 
